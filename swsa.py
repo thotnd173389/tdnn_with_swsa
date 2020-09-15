@@ -6,6 +6,7 @@ Created on Tue Sep 15 09:24:04 2020
 @author: thorius
 """
 import tensorflow as tf
+from attend import Attend
 
 class SWSA(tf.keras.layers.Layer):
     def __init__(self,
@@ -17,6 +18,8 @@ class SWSA(tf.keras.layers.Layer):
                  bias_regularizer=None,
                  bias_constraint=None,
                  activation='relu',
+                 mode = 'scaled-dot',
+                 num_head = 1,
                  **kwargs):
         super(SWSA, self).__init__(**kwargs)
         
@@ -32,25 +35,35 @@ class SWSA(tf.keras.layers.Layer):
         
         self.activation = tf.keras.activations.get(activation)
         
+        self.mode = mode
+        self.num_head = num_head
+        
     def build(self, input_shape):
         super(SWSA, self).build(input_shape)
+        self.attends = []
+        if self.mode == 'scaled-dot':
+            self.attend = Attend(self.units, 
+                                 self.weights_initializer,
+                                 self.weights_regularizer,
+                                 self.weights_constraint,
+                                 self.bias_initializer,
+                                 self.bias_regularizer,
+                                 self.bias_constraint,
+                                 self.activation)
+        elif self.mode == 'multi-head':
+            for i in range(self.num_head):
+                self.attends.append(Attend(int(self.units/self.num_head),
+                                            self.weights_initializer,
+                                            self.weights_regularizer,
+                                            self.weights_constraint,
+                                            self.bias_initializer,
+                                            self.bias_regularizer,
+                                            self.bias_constraint,
+                                            self.activation))
+        else:
+            raise ValueError('mode argument must be scaled-dot or multi-head!!!')
+            
         
-        feature_dim = input_shape[-1]
-        
-        self.attention_weights = self.add_weight(
-            shape = (feature_dim, self.units),
-            name = 'self_attention_weight',
-            initializer=self.weights_initializer,
-            constraint=self.weights_constraint,
-            regularizer=self.weights_regularizer)
-        
-        
-        
-        self.bias = self.add_weight(
-            shape = (self.units,),
-            initializer=self.bias_initializer,
-            regularizer=self.bias_regularizer,
-            constraint=self.bias_constraint)
         
         
     def call(self, inputs):
@@ -58,16 +71,11 @@ class SWSA(tf.keras.layers.Layer):
         if inputs.shape.rank != 3:  
             raise ValueError('inputs.shape.rank: %d must be 3 ' % inputs.shape.rank)
         
-        v = tf.matmul(inputs, self.attention_weights) + self.bias
-        
-        scaled_softmax_v = tf.nn.softmax(tf.matmul(v, tf.transpose(v, [0, 2, 1])) / tf.math.sqrt(tf.constant(self.units, dtype = tf.float32)))
-        attend_v = tf.matmul(scaled_softmax_v, v)
-        
-        
-        attend_v = self.activation(attend_v)
-        
-        attend_v = tf.keras.layers.LayerNormalization(axis=-1, center=True, scale=True)(attend_v)
-        return attend_v
+        if self.mode == 'scaled-dot':
+            output = self.attend(inputs)
+        elif self.mode == 'multi-head':
+            output = tf.keras.layers.concatenate([attend(inputs) for attend in self.attends])
+        return output
         
     def get_config(self):
       config = {
