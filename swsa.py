@@ -60,12 +60,13 @@ class SWSA(tf.keras.layers.Layer):
         
         v = tf.matmul(inputs, self.attention_weights) + self.bias
         
-        scaled_softmax_v = tf.nn.softmax(tf.matmul(v, tf.transpose(v, [0, 2, 1])) / self.units)
+        scaled_softmax_v = tf.nn.softmax(tf.matmul(v, tf.transpose(v, [0, 2, 1])) / tf.math.sqrt(tf.constant(self.units, dtype = tf.float32)))
         attend_v = tf.matmul(scaled_softmax_v, v)
+        
         
         attend_v = self.activation(attend_v)
         
-        attend_v = tf.keras.layers.LayerNormalization(axis=2 , center=True , scale=True)(attend_v)
+        attend_v = tf.keras.layers.LayerNormalization(axis=-1, center=True, scale=True)(attend_v)
         return attend_v
         
     def get_config(self):
