@@ -49,10 +49,8 @@ class MFCC(tf.keras.layers.Layer):
                                pad_end=self.pad_end)
         
         spectrograms = tf.abs(stfts[:,:-1,:])
-        print("spectrograms: ", spectrograms.shape)
         
         num_spectrogram_bins = stfts.shape[-1]
-        print("num_spectrogram_bins: ", num_spectrogram_bins)
         
         linear_to_mel_weight_matrix = tf.signal.linear_to_mel_weight_matrix(
                                   self.mel_num_bins, 
@@ -68,10 +66,8 @@ class MFCC(tf.keras.layers.Layer):
         
         # Compute a stabilized log to get log-magnitude mel-scale spectrograms.
         log_mel_spectrograms = tf.math.log(mel_spectrograms + self.log_epsilon)
-        print("log_mel_spectrogram shape", log_mel_spectrograms.shape)
         
         # Compute MFCCs from log_mel_spectrograms 
         mfccs = tf.signal.mfccs_from_log_mel_spectrograms(log_mel_spectrograms)[..., :40]
         
         return mfccs
-        

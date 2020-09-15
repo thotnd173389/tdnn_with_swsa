@@ -108,28 +108,3 @@ class TDNN(tf.keras.layers.Layer):
       }
       base_config = super(TDNN, self).get_config()
       return dict(list(base_config.items()) + list(config.items()))
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
